@@ -67,8 +67,16 @@ int scull_p_open(struct inode* inode, struct file *fp){
 	return nonseekable_open(inode, fp);
 }
 
+static int scull_p_fasync(int fd, struct file *filp, int mode)
+{
+	struct scull_pipe *dev = filp->private_data;
+
+	return fasync_helper(fd, filp, mode, &dev->async_queue);
+}
+
 int scull_p_release(struct inode *inode, struct file *fp){
 	struct scull_pipe *dev = fp->private_data;
+	scull_p_fasync(-1, fp, 0);
 	if(down_interruptible(&dev->sem))
 		return ERESTARTSYS;
 	if(fp->f_mode & FMODE_READ)
@@ -83,6 +91,21 @@ static int spacefree(struct scull_pipe *dev){
 	if(dev->rp == dev->wp)
 		return dev->buffersize -1;
 	return ((dev->rp + dev->buffersize - dev->wp) % dev->buffersize) - 1;
+}
+
+static unsigned int scull_p_poll(struct file *fp, poll_table *wait){
+	struct scull_pipe *dev = fp->private_data;
+	unsigned int mask=0;
+
+	down(&dev->sem);
+	poll_wait(fp, &dev->inq, wait);
+	poll_wait(fp, &dev->outq, wait);
+	if(dev->rp != dev->wp)
+		mask |= POLLIN | POLLRDNORM;
+	if(spacefree(dev))
+		mask |= POLLOUT | POLLWRNORM;
+	up(&dev->sem);
+	return mask;
 }
 
 static int scull_getwritespace(struct scull_pipe *dev, struct file *filp){
@@ -133,8 +156,10 @@ static ssize_t scull_p_write(struct file *filp, const char __user *buff, size_t 
 
 	wake_up_interruptible(&dev->inq);
 
-	if(dev->async_queue)
+	if(dev->async_queue){
+	    PDEBUG("send message SIGIOd\n");
 		kill_fasync(&dev->async_queue, SIGIO, POLL_IN);
+	}
 
 	PDEBUG("\"%s\" did write %li bytes\n", current->comm, count);
 	return count;
@@ -177,6 +202,8 @@ struct file_operations scull_pipe_fops={
 	.write = scull_p_write,
 	.read = scull_p_read,
 	.release = scull_p_release,
+	.poll = scull_p_poll,
+	.fasync = scull_p_fasync,
 };
 
 static void scull_p_setup_cdev(struct scull_pipe *dev){

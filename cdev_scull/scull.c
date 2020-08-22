@@ -165,6 +165,30 @@ ssize_t scull_write(struct file *filp, const char __user *buff, size_t count, lo
 	return retval;
 }
 
+loff_t scull_llseek(struct file *fp, loff_t off, int whence){
+	struct scull_dev *dev = fp->private_data;
+
+	loff_t newpos;
+
+	switch(whence){
+		case 0:/*SEEK_SET*/
+			newpos = off;
+			break;
+		case 1:/* SEEK_CUR */
+			newpos = fp->f_flags + off;
+			break;
+		case 2: /* SEEK_END */
+			newpos = dev->size + off;
+			break;
+		default:
+			return -EINVAL;
+	}
+	if(newpos<0)
+		return -EINVAL;
+	fp->f_pos = newpos;
+	return newpos;
+}
+
 int scull_open(struct inode *inode,struct file *filp){
 	struct scull_dev *dev;
 

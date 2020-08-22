@@ -51,11 +51,14 @@ ssize_t scull_write(struct file *filp, const char __user *buff, size_t count, lo
 
 long int scull_ioctl (struct file *filp,unsigned int cmd, unsigned long arg);
 
+loff_t scull_llseek(struct file *fp, loff_t off, int whence);
+
 struct file_operations scull_fops={
 	.owner =    THIS_MODULE,
 	.read =     scull_read,
 	.write =    scull_write,
 	.open =     scull_open,
+	.llseek =   scull_llseek,
 	.release =  scull_release,
 	.unlocked_ioctl =   	scull_ioctl,
 };

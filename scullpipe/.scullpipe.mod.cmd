@@ -1,0 +1,1 @@
+cmd_/home/gary/Desktop/test/linux_deivice_drivers/scullpipe/scullpipe.mod := { echo  /home/gary/Desktop/test/linux_deivice_drivers/scullpipe/scullpipe.o; echo; } > /home/gary/Desktop/test/linux_deivice_drivers/scullpipe/scullpipe.mod
